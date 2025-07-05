@@ -1,0 +1,11 @@
+# Frontend (React)
+frontend/node_modules/
+
+frontend/.env
+
+# Backend (Django)
+Django-rest-backend/__pycache__/
+Django-rest-backend/*.py[cod]
+Django-rest-backend/.env
+Django-rest-backend/db.sqlite3
+
