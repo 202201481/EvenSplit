@@ -8,25 +8,47 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'password']
+        
     def create(self, validated_data):
         user = User(username=validated_data['username'],email=validated_data['email'])
         user.set_password(validated_data['password'])
         user.save()
         return user
-    def validate_email(self,value):
+        
+    def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("Email already exists")
         return value
+        
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Username already exists")
+        return value
 
 class FriendSerializer(serializers.ModelSerializer):
-    friend = UserSerializer(read_only=True)
+    friend_info = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Friend
+        fields = ['id', 'friend_info', 'created_at']
+    
+    def get_friend_info(self, obj):
+        request_user = self.context['request'].user
+        # Determine who the "other" user is (not the current user)
+        if obj.user == request_user:
+            other_user = obj.friend
+        else:
+            other_user = obj.user
+        return UserSerializer(other_user).data
+
+class FriendCreateSerializer(serializers.ModelSerializer):
     friend_id = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.all(), source='friend', write_only=True
     )
 
     class Meta:
         model = Friend
-        fields = ['id', 'friend', 'friend_id', 'created_at']
+        fields = ['friend_id']
 
 class BillSplitSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -78,16 +100,16 @@ class BillSerializer(serializers.ModelSerializer):
 class SettlementSerializer(serializers.ModelSerializer):
     payer = UserSerializer(read_only=True)
     payee = UserSerializer(read_only=True)
-    payer_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(), source='payer', write_only=True
-    )
     payee_id = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.all(), source='payee', write_only=True
+    )
+    bill = serializers.PrimaryKeyRelatedField(
+        queryset=Bill.objects.all(), required=False, allow_null=True
     )
 
     class Meta:
         model = Settlement
-        fields = ['id', 'payer', 'payee', 'amount', 'bill', 'created_at', 'payer_id', 'payee_id']
+        fields = ['id', 'payer', 'payee', 'amount', 'bill', 'created_at', 'payee_id']
 
     
 class GroupSerializer(serializers.ModelSerializer):
